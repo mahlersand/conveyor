@@ -38,7 +38,6 @@ namespace conveyor
 			{}
 
 			enumerator &operator++()
-			requires std::weakly_incrementable<base_iterator_type>
 			{
 				++idx;
 				++it;
@@ -47,7 +46,6 @@ namespace conveyor
 			}
 
 			enumerator operator++(int)
-			requires std::weakly_incrementable<base_iterator_type>
 			{
 				enumerator copy = *this;
 
@@ -57,7 +55,7 @@ namespace conveyor
 			}
 
 			enumerator &operator--()
-			requires std::bidirectional_iterator<base_iterator_type>
+			requires std::ranges::bidirectional_range<View> && std::ranges::sized_range<View>
 			{
 				--idx;
 				--it;
@@ -66,7 +64,7 @@ namespace conveyor
 			}
 
 			enumerator operator--(int)
-			requires std::bidirectional_iterator<base_iterator_type>
+			requires std::ranges::bidirectional_range<View>
 			{
 				enumerator copy = *this;
 
@@ -106,16 +104,18 @@ namespace conveyor
 	public:
 		enumerate_view() = default;
 
-		enumerate_view(View base) :
-		    base_(base),
+		enumerate_view(View &&base) :
+		    base_(std::forward<View>(base)),
 		    begin_(0, std::begin(base_)),
 		    end_(0, std::end(base_))
-		{}
+		{
+			std::cerr << "WRONG!" << std::endl;
+		}
 
-		enumerate_view(View base) requires std::ranges::sized_range<View> :
-		    base_(base),
+		enumerate_view(View &&base) requires std::ranges::sized_range<View> :
+		    base_(std::forward<View>(base)),
 		    begin_(0, std::begin(base_)),
-		    end_(base.size(), std::end(base_))
+		    end_(base_.size(), std::end(base_))
 		{}
 
 		constexpr enumerator begin() const
@@ -126,6 +126,12 @@ namespace conveyor
 		constexpr enumerator end() const
 		{
 			return end_;
+		}
+
+		constexpr std::size_t size() const
+		requires std::ranges::sized_range<View>
+		{
+			return base_.size();
 		}
 	};
 
@@ -151,7 +157,7 @@ namespace conveyor
 		struct enumerate_range_adaptor
 		{
 			template<rg::viewable_range R>
-			constexpr auto operator()(R && r) const
+			constexpr auto operator()(R &&r) const
 			{
 				return enumerate_view(std::forward<R>(r));
 			}
